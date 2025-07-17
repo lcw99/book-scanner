@@ -34,8 +34,11 @@ class GUIComponents:
         # Step 3: Set page count
         self._create_step3_frame(main_frame)
         
-        # Step 4: Capture and OCR
+        # Step 4: Capture and Process
         self._create_step4_frame(main_frame)
+        
+        # PDF OCR section
+        self._create_pdf_ocr_frame(main_frame)
         
         # Progress section
         self._create_progress_frame(main_frame)
@@ -101,13 +104,23 @@ class GUIComponents:
         self.app.open_folder_btn = ttk.Button(step4_frame, text="Open Output Folder", command=self.open_output_folder)
         self.app.open_folder_btn.grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
         
+    def _create_pdf_ocr_frame(self, parent):
+        """Create PDF OCR frame for processing existing PDFs"""
+        pdf_ocr_frame = ttk.LabelFrame(parent, text="OCR Existing PDF", padding="10")
+        pdf_ocr_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        ttk.Label(pdf_ocr_frame, text="Already have a PDF? Extract text using OCR:").grid(row=0, column=0, columnspan=2, sticky=tk.W)
+        
+        self.app.process_pdf_btn = ttk.Button(pdf_ocr_frame, text="Select PDF & Extract Text", command=self.app.process_existing_pdf)
+        self.app.process_pdf_btn.grid(row=1, column=0, sticky=tk.W, pady=(10, 0))
+        
         # Settings section
         self._create_settings_frame(parent)
         
     def _create_settings_frame(self, parent):
         """Create settings management frame"""
         settings_frame = ttk.LabelFrame(parent, text="Settings", padding="10")
-        settings_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        settings_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(settings_frame, text="Area and button positions are automatically saved and restored on startup.").grid(row=0, column=0, columnspan=3, sticky=tk.W)
         
@@ -127,7 +140,7 @@ class GUIComponents:
     def _create_progress_frame(self, parent):
         """Create progress frame"""
         progress_frame = ttk.LabelFrame(parent, text="Progress", padding="10")
-        progress_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        progress_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         self.app.progress_var = tk.DoubleVar()
         self.app.progress_bar = ttk.Progressbar(progress_frame, variable=self.app.progress_var, maximum=100)
@@ -139,7 +152,7 @@ class GUIComponents:
     def _create_output_frame(self, parent):
         """Create output frame with text widget"""
         output_frame = ttk.LabelFrame(parent, text="Output", padding="10")
-        output_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        output_frame.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         
         self.app.output_text = tk.Text(output_frame, height=10, wrap=tk.WORD)
         scrollbar = ttk.Scrollbar(output_frame, orient="vertical", command=self.app.output_text.yview)
@@ -157,7 +170,7 @@ class GUIComponents:
         self.app.root.columnconfigure(0, weight=1)
         self.app.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(8, weight=1)
         
     def open_output_folder(self):
         """Open the output folder where PDFs are saved"""

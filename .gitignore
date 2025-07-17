@@ -46,8 +46,20 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
+# Credentials and sensitive files
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+*credentials.json
+*service-account*.json
+*.key
+*.pem
+
 # Project specific
 *.png
+book_scanner_settings.json
+test_capture.png
 *.jpg
 *.jpeg
 screenshots/

@@ -166,6 +166,88 @@ class BookScannerApp:
             self.log_message("💾 No saved settings file found")
         self.log_message("===============================")
         
+    def process_existing_pdf(self):
+        """Process an existing PDF file with OCR"""
+        from tkinter import filedialog
+        import sys
+        import os
+        
+        # Add src directory to path to import google_vision_ocr
+        src_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src')
+        if src_dir not in sys.path:
+            sys.path.insert(0, src_dir)
+        
+        try:
+            from google_vision_ocr import process_pdf
+        except ImportError as e:
+            self.log_message(f"Error importing OCR module: {e}")
+            messagebox.showerror("Import Error", "Could not import OCR module. Please check installation.")
+            return
+        
+        # Check if Google Vision API credentials are set
+        if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+            self.log_message("Warning: Google Vision API credentials not set.")
+            messagebox.showwarning("Warning", 
+                "Google Vision API credentials not set.\n\n"
+                "Please set GOOGLE_APPLICATION_CREDENTIALS environment variable\n"
+                "or edit src/google_vision_ocr.py to add the credentials path directly.")
+            return
+        
+        # Open file dialog to select PDF
+        pdf_file = filedialog.askopenfilename(
+            title="Select PDF file for OCR",
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
+        )
+        
+        if not pdf_file:
+            return  # User cancelled
+        
+        self.log_message(f"Selected PDF: {os.path.basename(pdf_file)}")
+        
+        # Choose output folder
+        output_folder = filedialog.askdirectory(
+            title="Select output folder for text file",
+            initialdir=os.path.dirname(pdf_file)
+        )
+        
+        if not output_folder:
+            # Use same folder as PDF if user cancels
+            output_folder = os.path.dirname(pdf_file)
+        
+        self.log_message(f"Output folder: {output_folder}")
+        
+        # Start OCR processing in a separate thread
+        def run_pdf_ocr():
+            try:
+                self.status_label.config(text="Processing PDF with OCR...")
+                self.log_message("Starting OCR processing of existing PDF...")
+                
+                # Process the PDF
+                process_pdf(pdf_file, output_folder)
+                
+                # Create output file path for display
+                output_file = os.path.join(output_folder, f"{os.path.basename(pdf_file)}.txt")
+                
+                self.status_label.config(text="OCR processing completed!")
+                self.log_message("✅ OCR processing completed!")
+                self.log_message(f"Text extracted to: {output_file}")
+                
+                # Show completion message
+                messagebox.showinfo("OCR Complete", 
+                    f"OCR processing completed!\n\n"
+                    f"Text file saved as:\n{os.path.basename(output_file)}\n\n"
+                    f"Location: {output_folder}")
+                
+            except Exception as e:
+                self.status_label.config(text="OCR processing failed")
+                self.log_message(f"❌ OCR Error: {str(e)}")
+                messagebox.showerror("OCR Error", f"Failed to process PDF:\n{str(e)}")
+        
+        # Run in separate thread to avoid blocking UI
+        thread = threading.Thread(target=run_pdf_ocr)
+        thread.daemon = True
+        thread.start()
+
     def show_test_capture(self, screenshot):
         """Display the test capture in a new window"""
         from PIL import ImageTk
