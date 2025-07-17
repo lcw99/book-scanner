@@ -54,11 +54,18 @@ class SelectionHandlers:
     def select_capture_area(self):
         """Start area selection process - use overlay method"""
         self.app.log_message("Starting overlay area selection...")
+        self.app.log_message("Hiding main window to allow selection from other windows...")
+        # Hide the main app window to avoid interference
+        self.app.root.withdraw()
         # Use the overlay selection method
         self.create_area_selector()
         
     def create_area_selector(self):
         """Create a transparent overlay for area selection - macOS optimized"""
+        # Give a small delay to ensure main window is hidden
+        import time
+        time.sleep(0.2)
+        
         overlay = tk.Toplevel()
         
         # Get screen dimensions
@@ -149,6 +156,7 @@ class SelectionHandlers:
             # Don't destroy the overlay yet
             overlay.withdraw()  # Just hide it temporarily
             self.app.root.deiconify()  # Show main window again
+            self.app.log_message("Main window restored after area selection")
             
             # Log detailed coordinate information for debugging
             self.app.area_status_label.config(text=f"Area: {self.app.top_left} to {self.app.bottom_right}", foreground="green")
@@ -182,8 +190,8 @@ class SelectionHandlers:
             
         def cancel_selection(event=None):
             overlay.destroy()
-            self.app.root.deiconify()
-            self.app.log_message("Area selection cancelled")
+            self.app.root.deiconify()  # Show the main window again
+            self.app.log_message("Main window restored after area selection cancellation")
             
         canvas.bind('<Button-1>', start_selection)
         canvas.bind('<B1-Motion>', update_selection)
@@ -217,11 +225,18 @@ class SelectionHandlers:
     def select_next_button(self):
         """Start next button selection process - use overlay method"""
         self.app.log_message("Starting overlay button selection...")
+        self.app.log_message("Hiding main window to allow selection from other windows...")
+        # Hide the main app window to avoid interference
+        self.app.root.withdraw()
         # Use the overlay selection method
         self.create_button_selector()
         
     def create_button_selector(self):
         """Create a transparent overlay for button selection - same as area selector"""
+        # Give a small delay to ensure main window is hidden
+        import time
+        time.sleep(0.2)
+        
         overlay = tk.Toplevel()
         
         # Get screen dimensions
@@ -270,6 +285,7 @@ class SelectionHandlers:
             
             overlay.destroy()
             self.app.root.deiconify()
+            self.app.log_message("Main window restored after button selection")
             
             self.app.button_status_label.config(text=f"Button at: {self.app.next_button_pos}", foreground="green")
             self.app.log_message(f"Canvas click at: ({event.x}, {event.y})")
@@ -282,8 +298,8 @@ class SelectionHandlers:
             
         def cancel_selection(event=None):
             overlay.destroy()
-            self.app.root.deiconify()
-            self.app.log_message("Button selection cancelled")
+            self.app.root.deiconify()  # Show the main window again
+            self.app.log_message("Main window restored after button selection cancellation")
             
         canvas.bind('<Motion>', update_crosshair)
         canvas.bind('<Button-1>', capture_click)

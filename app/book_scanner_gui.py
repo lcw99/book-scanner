@@ -112,10 +112,11 @@ class BookScannerApp:
             import platform
             self.log_message(f"Platform: {platform.system()}")
             
+            self.log_message("Hiding main window for test capture...")
             # Hide window for test
             self.root.withdraw()
             import time
-            time.sleep(1)
+            time.sleep(1)  # Give time for window to hide completely
             
             # Take test screenshot
             screenshot = self.capture_processor._take_high_quality_screenshot(region)
@@ -131,6 +132,7 @@ class BookScannerApp:
             
             # Show window again
             self.root.deiconify()
+            self.log_message("Main window restored after test capture")
             
             # Let the user know where the file was saved
             self.log_message(f"✅ Test capture saved to Desktop as 'test_capture.png'")
@@ -143,6 +145,7 @@ class BookScannerApp:
             
         except Exception as e:
             self.root.deiconify()
+            self.log_message("Main window restored after test capture error")
             self.log_message(f"Test capture failed: {e}")
             
     def show_settings_status(self):
