@@ -212,16 +212,16 @@ class CaptureProcessor:
         self.app.status_label.config(text="Converting to PDF...")
         self.app.log_message("Converting images to PDF...")
         
-        # Save PDF to Desktop for easy access
-        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-        if not os.path.exists(desktop_path):
-            # Fallback to current directory if Desktop doesn't exist
-            desktop_path = os.getcwd()
+        # Save PDF to Documents/book-scanner folder
+        output_folder = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
+        
+        # Create the folder if it doesn't exist
+        os.makedirs(output_folder, exist_ok=True)
         
         # Generate unique filename with timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_filename = f"captured_book_{timestamp}.pdf"
-        pdf_path = os.path.join(desktop_path, pdf_filename)
+        pdf_path = os.path.join(output_folder, pdf_filename)
         
         with open(pdf_path, "wb") as f:
             f.write(img2pdf.convert(images))
@@ -275,9 +275,22 @@ class CaptureProcessor:
             
         self.app.log_message("=" * 50)
         
+        # Open the output folder
+        output_folder = os.path.dirname(pdf_path)
+        try:
+            if platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', output_folder])
+            elif platform.system() == 'Windows':
+                subprocess.run(['explorer', output_folder])
+            elif platform.system() == 'Linux':
+                subprocess.run(['xdg-open', output_folder])
+            self.app.log_message(f"Opened output folder: {output_folder}")
+        except Exception as e:
+            self.app.log_message(f"Could not open output folder: {e}")
+        
         # Show completion message
         ocr_status = "with OCR text extraction" if ocr_performed else "without OCR"
         messagebox.showinfo("Process Complete", 
                           f"Book capture completed {ocr_status}!\n\n"
                           f"PDF saved to:\n{pdf_path}\n\n"
-                          f"Click 'Open Output Folder' to access your files.")
+                          f"The output folder has been opened for you.")

@@ -19,7 +19,10 @@ class BookScannerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Book Scanner - Cross Platform")
-        self.root.geometry("800x600")
+        
+        # Set window to full screen height and reasonable width
+        screen_height = self.root.winfo_screenheight()
+        self.root.geometry(f"1200x{screen_height - 100}")  # Full height minus some margin for dock/taskbar
         
         # Variables for screen coordinates
         self.top_left = None
@@ -167,7 +170,7 @@ class BookScannerApp:
         self.log_message("===============================")
         
     def process_existing_pdf(self):
-        """Process an existing PDF file with OCR"""
+        """Process an existing PDF file with OCR using async Google Vision API"""
         from tkinter import filedialog
         import sys
         import os
@@ -178,7 +181,7 @@ class BookScannerApp:
             sys.path.insert(0, src_dir)
         
         try:
-            from google_vision_ocr import process_pdf
+            from google_vision_ocr import process_pdf, upload_to_gcs_and_process
         except ImportError as e:
             self.log_message(f"Error importing OCR module: {e}")
             messagebox.showerror("Import Error", "Could not import OCR module. Please check installation.")
@@ -193,6 +196,20 @@ class BookScannerApp:
                 "or edit src/google_vision_ocr.py to add the credentials path directly.")
             return
         
+        # Ask user to choose OCR method
+        choice = messagebox.askyesnocancel(
+            "Choose OCR Method",
+            "Choose OCR processing method:\n\n"
+            "• YES: Async Document Detection (Faster, requires Google Cloud Storage)\n"
+            "• NO: Traditional Method (Slower, no cloud storage needed)\n"
+            "• CANCEL: Cancel operation"
+        )
+        
+        if choice is None:  # User cancelled
+            return
+        
+        use_async = choice  # True for async, False for traditional
+        
         # Open file dialog to select PDF
         pdf_file = filedialog.askopenfilename(
             title="Select PDF file for OCR",
@@ -203,6 +220,7 @@ class BookScannerApp:
             return  # User cancelled
         
         self.log_message(f"Selected PDF: {os.path.basename(pdf_file)}")
+        self.log_message(f"Using {'Async Document Detection' if use_async else 'Traditional'} method")
         
         # Choose output folder
         output_folder = filedialog.askdirectory(
@@ -219,29 +237,65 @@ class BookScannerApp:
         # Start OCR processing in a separate thread
         def run_pdf_ocr():
             try:
-                self.status_label.config(text="Processing PDF with OCR...")
-                self.log_message("Starting OCR processing of existing PDF...")
-                
-                # Process the PDF
-                process_pdf(pdf_file, output_folder)
-                
-                # Create output file path for display
-                output_file = os.path.join(output_folder, f"{os.path.basename(pdf_file)}.txt")
-                
-                self.status_label.config(text="OCR processing completed!")
-                self.log_message("✅ OCR processing completed!")
-                self.log_message(f"Text extracted to: {output_file}")
+                if use_async:
+                    # Use async document detection with GCS
+                    bucket_name = "book-scanner-ocr-bucket"
+                    
+                    self.status_label.config(text="Processing PDF with Async Document Detection...")
+                    self.log_message("Starting Async Document Detection OCR...")
+                    self.log_message(f"Using GCS bucket: {bucket_name}")
+                    
+                    # Process with async method
+                    extracted_text = upload_to_gcs_and_process(pdf_file, bucket_name, output_folder=output_folder)
+                    
+                    # Save the result
+                    output_file = os.path.join(output_folder, f"{os.path.basename(pdf_file)}_async.txt")
+                    with open(output_file, 'w', encoding='utf-8') as f:
+                        f.write(extracted_text)
+                    
+                    self.status_label.config(text="Async OCR processing completed!")
+                    self.log_message("✅ Async OCR processing completed!")
+                    self.log_message(f"Text extracted to: {output_file}")
+                    self.log_message(f"Extracted {len(extracted_text)} characters")
+                    
+                else:
+                    # Use traditional method
+                    self.status_label.config(text="Processing PDF with Traditional OCR...")
+                    self.log_message("Starting Traditional OCR processing...")
+                    
+                    # Process the PDF with traditional method
+                    process_pdf(pdf_file, output_folder)
+                    
+                    # Create output file path for display
+                    output_file = os.path.join(output_folder, f"{os.path.basename(pdf_file)}.txt")
+                    
+                    self.status_label.config(text="Traditional OCR processing completed!")
+                    self.log_message("✅ Traditional OCR processing completed!")
+                    self.log_message(f"Text extracted to: {output_file}")
                 
                 # Show completion message
+                method_name = "Async Document Detection" if use_async else "Traditional"
                 messagebox.showinfo("OCR Complete", 
-                    f"OCR processing completed!\n\n"
+                    f"{method_name} OCR processing completed!\n\n"
                     f"Text file saved as:\n{os.path.basename(output_file)}\n\n"
                     f"Location: {output_folder}")
                 
             except Exception as e:
+                error_msg = f"❌ {('Async' if use_async else 'Traditional')} OCR Error: {str(e)}"
                 self.status_label.config(text="OCR processing failed")
-                self.log_message(f"❌ OCR Error: {str(e)}")
-                messagebox.showerror("OCR Error", f"Failed to process PDF:\n{str(e)}")
+                self.log_message(error_msg)
+                
+                if use_async and ("bucket" in str(e).lower() or "storage" in str(e).lower()):
+                    messagebox.showerror("Async OCR Error", 
+                        f"Failed to process PDF with Async method:\n{str(e)}\n\n"
+                        "Troubleshooting:\n"
+                        "1. Check if GCS bucket 'book-scanner-ocr-bucket' exists\n"
+                        "2. Verify Cloud Storage API is enabled\n"
+                        "3. Ensure google-cloud-storage package is installed\n"
+                        "4. Check service account permissions\n\n"
+                        "Try the Traditional method if Async continues to fail.")
+                else:
+                    messagebox.showerror("OCR Error", f"Failed to process PDF:\n{str(e)}")
         
         # Run in separate thread to avoid blocking UI
         thread = threading.Thread(target=run_pdf_ocr)

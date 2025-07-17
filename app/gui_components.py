@@ -21,38 +21,55 @@ class GUIComponents:
         main_frame = ttk.Frame(self.app.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Title
-        title_label = ttk.Label(main_frame, text="Book Scanner", font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        # Create left column frame for controls
+        left_frame = ttk.Frame(main_frame)
+        left_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
         
-        # Step 1: Select capture area
-        self._create_step1_frame(main_frame)
+        # Create right column frame for output
+        right_frame = ttk.Frame(main_frame)
+        right_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Step 2: Select next button
-        self._create_step2_frame(main_frame)
+        # Create controls in left column
+        self._create_controls_column(left_frame)
         
-        # Step 3: Set page count
-        self._create_step3_frame(main_frame)
-        
-        # Step 4: Capture and Process
-        self._create_step4_frame(main_frame)
-        
-        # PDF OCR section
-        self._create_pdf_ocr_frame(main_frame)
-        
-        # Progress section
-        self._create_progress_frame(main_frame)
-        
-        # Output section
-        self._create_output_frame(main_frame)
+        # Create output in right column
+        self._create_output_column(right_frame)
         
         # Configure grid weights
         self._configure_grid_weights(main_frame)
         
+    def _create_controls_column(self, parent):
+        """Create left column with all control sections"""
+        # Step 1: Select capture area
+        self._create_step1_frame(parent)
+        
+        # Step 2: Select next button
+        self._create_step2_frame(parent)
+        
+        # Step 3: Set page count
+        self._create_step3_frame(parent)
+        
+        # Step 4: Capture and Process
+        self._create_step4_frame(parent)
+        
+        # PDF OCR section
+        self._create_pdf_ocr_frame(parent)
+        
+        # Progress section
+        self._create_progress_frame(parent)
+        
+        # Configure grid weights for left column
+        parent.columnconfigure(0, weight=1)
+        
+    def _create_output_column(self, parent):
+        """Create right column with output section"""
+        # Output section takes the full right column
+        self._create_output_frame(parent)
+        
     def _create_step1_frame(self, parent):
         """Create Step 1 frame for area selection"""
         step1_frame = ttk.LabelFrame(parent, text="Step 1: Select Book Page Area", padding="10")
-        step1_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        step1_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(step1_frame, text="Click the button below, then drag to select the book page area on your screen.").grid(row=0, column=0, columnspan=2, sticky=tk.W)
         
@@ -69,7 +86,7 @@ class GUIComponents:
     def _create_step2_frame(self, parent):
         """Create Step 2 frame for button selection"""
         step2_frame = ttk.LabelFrame(parent, text="Step 2: Select Next Page Button", padding="10")
-        step2_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        step2_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(step2_frame, text="Click the button below, then click on the 'Next Page' button location.").grid(row=0, column=0, columnspan=2, sticky=tk.W)
         
@@ -82,7 +99,7 @@ class GUIComponents:
     def _create_step3_frame(self, parent):
         """Create Step 3 frame for page count"""
         step3_frame = ttk.LabelFrame(parent, text="Step 3: Set Total Pages", padding="10")
-        step3_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        step3_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(step3_frame, text="Enter the total number of pages to capture:").grid(row=0, column=0, sticky=tk.W)
         
@@ -93,7 +110,7 @@ class GUIComponents:
     def _create_step4_frame(self, parent):
         """Create Step 4 frame for capture and process"""
         step4_frame = ttk.LabelFrame(parent, text="Step 4: Capture and Process", padding="10")
-        step4_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        step4_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         self.app.capture_btn = ttk.Button(step4_frame, text="Start Capture & OCR", command=self.app.start_capture_process)
         self.app.capture_btn.grid(row=0, column=0, sticky=tk.W)
@@ -102,17 +119,21 @@ class GUIComponents:
         self.app.stop_btn.grid(row=0, column=1, sticky=tk.W, padx=(10, 0))
         
         self.app.open_folder_btn = ttk.Button(step4_frame, text="Open Output Folder", command=self.open_output_folder)
-        self.app.open_folder_btn.grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
+        self.app.open_folder_btn.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
         
     def _create_pdf_ocr_frame(self, parent):
         """Create PDF OCR frame for processing existing PDFs"""
-        pdf_ocr_frame = ttk.LabelFrame(parent, text="OCR Existing PDF", padding="10")
-        pdf_ocr_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        pdf_ocr_frame = ttk.LabelFrame(parent, text="OCR Existing PDF (Traditional + Async)", padding="10")
+        pdf_ocr_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
-        ttk.Label(pdf_ocr_frame, text="Already have a PDF? Extract text using OCR:").grid(row=0, column=0, columnspan=2, sticky=tk.W)
+        ttk.Label(pdf_ocr_frame, text="Already have a PDF? Extract text using Google Vision OCR:").grid(row=0, column=0, columnspan=2, sticky=tk.W)
         
-        self.app.process_pdf_btn = ttk.Button(pdf_ocr_frame, text="Select PDF & Extract Text", command=self.app.process_existing_pdf)
+        self.app.process_pdf_btn = ttk.Button(pdf_ocr_frame, text="📄 Select PDF & Extract Text (Choose Method)", command=self.app.process_existing_pdf)
         self.app.process_pdf_btn.grid(row=1, column=0, sticky=tk.W, pady=(10, 0))
+        
+        # Add info label about methods
+        info_text = "💡 Async method is faster for large PDFs but requires Google Cloud Storage"
+        ttk.Label(pdf_ocr_frame, text=info_text, font=("TkDefaultFont", 8), foreground="gray").grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
         
         # Settings section
         self._create_settings_frame(parent)
@@ -120,7 +141,7 @@ class GUIComponents:
     def _create_settings_frame(self, parent):
         """Create settings management frame"""
         settings_frame = ttk.LabelFrame(parent, text="Settings", padding="10")
-        settings_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        settings_frame.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(settings_frame, text="Area and button positions are automatically saved and restored on startup.").grid(row=0, column=0, columnspan=3, sticky=tk.W)
         
@@ -132,19 +153,22 @@ class GUIComponents:
         self.app.clear_settings_btn.grid(row=1, column=1, sticky=tk.W, padx=(10, 0), pady=(5, 0))
         
         self.app.reset_selections_btn = ttk.Button(settings_frame, text="Reset Selections", command=self.reset_selections)
-        self.app.reset_selections_btn.grid(row=1, column=2, sticky=tk.W, padx=(10, 0), pady=(5, 0))
+        self.app.reset_selections_btn.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
         
         self.app.show_status_btn = ttk.Button(settings_frame, text="Show Status", command=self.app.show_settings_status)
-        self.app.show_status_btn.grid(row=2, column=0, sticky=tk.W, pady=(5, 0))
+        self.app.show_status_btn.grid(row=2, column=1, sticky=tk.W, padx=(10, 0), pady=(5, 0))
         
     def _create_progress_frame(self, parent):
         """Create progress frame"""
         progress_frame = ttk.LabelFrame(parent, text="Progress", padding="10")
-        progress_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        progress_frame.grid(row=6, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         self.app.progress_var = tk.DoubleVar()
         self.app.progress_bar = ttk.Progressbar(progress_frame, variable=self.app.progress_var, maximum=100)
-        self.app.progress_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 5))
+        self.app.progress_bar.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        
+        # Configure progress frame column to expand
+        progress_frame.columnconfigure(0, weight=1)
         
         self.app.status_label = ttk.Label(progress_frame, text="Ready to start...")
         self.app.status_label.grid(row=1, column=0, columnspan=3, sticky=tk.W)
@@ -152,9 +176,9 @@ class GUIComponents:
     def _create_output_frame(self, parent):
         """Create output frame with text widget"""
         output_frame = ttk.LabelFrame(parent, text="Output", padding="10")
-        output_frame.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        output_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        self.app.output_text = tk.Text(output_frame, height=10, wrap=tk.WORD)
+        self.app.output_text = tk.Text(output_frame, height=25, wrap=tk.WORD)
         scrollbar = ttk.Scrollbar(output_frame, orient="vertical", command=self.app.output_text.yview)
         self.app.output_text.configure(yscrollcommand=scrollbar.set)
         
@@ -165,12 +189,22 @@ class GUIComponents:
         output_frame.columnconfigure(0, weight=1)
         output_frame.rowconfigure(0, weight=1)
         
+        # Configure parent grid weights to make output expand
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+        
     def _configure_grid_weights(self, main_frame):
         """Configure grid weights for responsive layout"""
         self.app.root.columnconfigure(0, weight=1)
         self.app.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(8, weight=1)
+        
+        # Configure main frame to expand both columns
+        main_frame.columnconfigure(0, weight=1)  # Left column (controls)
+        main_frame.columnconfigure(1, weight=2)  # Right column (output) - wider
+        main_frame.rowconfigure(0, weight=1)     # Content row expands
+        
+        # Configure left column to expand controls frames horizontally
+        # (Individual frames are already configured in their respective methods)
         
     def open_output_folder(self):
         """Open the output folder where PDFs are saved"""

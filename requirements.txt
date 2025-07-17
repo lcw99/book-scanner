@@ -3,8 +3,9 @@ Pillow>=8.0.0
 pyautogui>=0.9.50
 img2pdf>=0.4.0
 
-# Google Vision API
+# Google Vision API and Cloud Storage
 google-cloud-vision>=2.0.0
+google-cloud-storage>=2.0.0
 
 # PDF processing
 pdf2image>=1.16.0
