@@ -115,7 +115,7 @@ class BookScannerApp:
             time.sleep(1)
             
             # Take test screenshot
-            screenshot = pyautogui.screenshot(region=region)
+            screenshot = self.capture_processor._take_high_quality_screenshot(region)
             
             # Save to desktop for inspection
             import os

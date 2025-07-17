@@ -10,6 +10,8 @@ import datetime
 from tkinter import messagebox
 import pyautogui
 import img2pdf
+import platform
+import subprocess
 
 # Add src directory to path to import our modules
 import sys
@@ -22,6 +24,44 @@ class CaptureProcessor:
     
     def __init__(self, app_instance):
         self.app = app_instance
+        
+    def _take_high_quality_screenshot(self, region):
+        """Take a high-quality screenshot, using native methods on macOS for better resolution"""
+        try:
+            if platform.system() == 'Darwin':  # macOS
+                # Try using macOS screencapture for higher quality
+                x, y, width, height = region
+                temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                temp_file.close()
+                
+                # Use screencapture with region
+                cmd = [
+                    'screencapture', 
+                    '-x',  # No sound
+                    '-R', f'{x},{y},{width},{height}',
+                    temp_file.name
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0:
+                    # Load the screenshot
+                    from PIL import Image
+                    screenshot = Image.open(temp_file.name)
+                    self.app.log_message(f"High-quality capture: {screenshot.size}")
+                    
+                    # Clean up temp file
+                    os.unlink(temp_file.name)
+                    return screenshot
+                else:
+                    self.app.log_message(f"screencapture failed: {result.stderr}, falling back to pyautogui")
+                    
+            # Fallback to pyautogui for non-macOS or if screencapture fails
+            return pyautogui.screenshot(region=region)
+            
+        except Exception as e:
+            self.app.log_message(f"High-quality capture failed: {e}, using pyautogui")
+            return pyautogui.screenshot(region=region)
         
     def start_capture_process(self):
         """Start the capture and OCR process"""
@@ -99,7 +139,7 @@ class CaptureProcessor:
                 
                 self.app.log_message(f"Capturing page {i+1}/{self.app.total_pages} - Region: {region}")
                 
-                screenshot = pyautogui.screenshot(region=region)
+                screenshot = self._take_high_quality_screenshot(region)
                 screenshot.save(file_name)
                 
                 self.app.log_message(f"Saved page {i+1} to {file_name}")
