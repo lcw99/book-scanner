@@ -113,9 +113,15 @@ class CaptureProcessor:
             time.sleep(1)  # Give time for window to hide
             
             # Add initial wait to ensure we're ready to capture the current page
-            self.app.log_message("Waiting 2 seconds before starting capture...")
+            self.app.log_message("Waiting 3 seconds before starting capture...")
             self.app.log_message("Make sure you're on the FIRST page you want to capture!")
-            time.sleep(2)  # Give user time to prepare and ensure we capture current page
+            self.app.log_message("Make sure your book reader application is focused and ready!")
+            time.sleep(3)  # Give user time to prepare and ensure we capture current page
+            
+            # Ensure the target application has focus by clicking on the next button area first
+            # This ensures the button area is ready and focused for subsequent clicks
+            pyautogui.click(self.app.next_button_pos)
+            time.sleep(0.5)  # Brief pause after focus click
             
             images = []
             temp_dir = tempfile.mkdtemp()
@@ -147,8 +153,22 @@ class CaptureProcessor:
                 # Click next button (except for last page)
                 if i < self.app.total_pages - 1:
                     self.app.log_message(f"Clicking next button at {self.app.next_button_pos}")
+                    
+                    # Make a click sound for testing feedback
+                    if platform.system() == 'Darwin':  # macOS
+                        subprocess.run(['afplay', '/System/Library/Sounds/Pop.aiff'], 
+                                     capture_output=True)
+                    elif platform.system() == 'Windows':
+                        import winsound
+                        winsound.MessageBeep(winsound.MB_OK)
+                    
+                    # Add a small delay before clicking to ensure stability
+                    time.sleep(0.3)
                     pyautogui.click(self.app.next_button_pos)
-                    time.sleep(1.5)  # Wait for page to load
+                    
+                    # Increased wait time for page to load and become ready
+                    # This helps prevent the "first click doesn't work" issue
+                    time.sleep(2.5)  # Wait for page to load and stabilize
                     
             # Show GUI window again
             self.app.root.deiconify()
@@ -160,11 +180,22 @@ class CaptureProcessor:
             # Step 2: Convert to PDF
             pdf_path = self._convert_to_pdf(images)
             
-            # Step 3: OCR Processing
-            self._perform_ocr(pdf_path)
+            # Step 3: Ask user if they want to proceed with OCR
+            proceed_with_ocr = messagebox.askyesno(
+                "OCR Processing", 
+                f"PDF created successfully!\n\n"
+                f"Location: {pdf_path}\n\n"
+                f"Would you like to proceed with OCR text extraction?\n"
+                f"(This may take several minutes depending on the number of pages)"
+            )
+            
+            if proceed_with_ocr:
+                self._perform_ocr(pdf_path)
+            else:
+                self.app.log_message("OCR processing skipped by user.")
             
             # Final completion message
-            self._show_completion_message(pdf_path)
+            self._show_completion_message(pdf_path, ocr_performed=proceed_with_ocr)
             
         except Exception as e:
             self.app.log_message(f"Error: {str(e)}")
@@ -226,23 +257,27 @@ class CaptureProcessor:
             messagebox.showerror("OCR Error", f"Failed to perform OCR: {str(e)}")
             return None
             
-    def _show_completion_message(self, pdf_path):
+    def _show_completion_message(self, pdf_path, ocr_performed=True):
         """Show completion message and summary"""
         self.app.status_label.config(text="Process completed!")
         self.app.log_message("All processing completed successfully!")
         self.app.log_message("=" * 50)
         self.app.log_message(f"📁 PDF saved to: {pdf_path}")
         
-        # Check if text file was created
-        output_folder = os.path.dirname(pdf_path)
-        text_file_path = os.path.join(output_folder, os.path.basename(pdf_path) + ".txt")
-        if os.path.exists(text_file_path):
-            self.app.log_message(f"📄 Text file saved to: {text_file_path}")
+        # Check if text file was created (only if OCR was performed)
+        if ocr_performed:
+            output_folder = os.path.dirname(pdf_path)
+            text_file_path = os.path.join(output_folder, os.path.basename(pdf_path) + ".txt")
+            if os.path.exists(text_file_path):
+                self.app.log_message(f"📄 Text file saved to: {text_file_path}")
+        else:
+            self.app.log_message("📄 OCR processing was skipped - no text file created")
             
         self.app.log_message("=" * 50)
         
         # Show completion message
+        ocr_status = "with OCR text extraction" if ocr_performed else "without OCR"
         messagebox.showinfo("Process Complete", 
-                          f"Book capture completed!\n\n"
+                          f"Book capture completed {ocr_status}!\n\n"
                           f"PDF saved to:\n{pdf_path}\n\n"
                           f"Click 'Open Output Folder' to access your files.")
