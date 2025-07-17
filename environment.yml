@@ -1,0 +1,15 @@
+name: book-scanner
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pillow>=8.0.0
+  - numpy>=1.19.0
+  - opencv
+  - poppler
+  - pip
+  - pip:
+    - pyautogui>=0.9.50
+    - img2pdf>=0.4.0
+    - google-cloud-vision>=2.0.0
+    - pdf2image>=1.16.0

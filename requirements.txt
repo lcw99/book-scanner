@@ -1,0 +1,24 @@
+# Core GUI and image processing
+Pillow>=8.0.0
+pyautogui>=0.9.50
+img2pdf>=0.4.0
+
+# Google Vision API
+google-cloud-vision>=2.0.0
+
+# PDF processing
+pdf2image>=1.16.0
+
+# OpenCV for image preprocessing
+opencv-python>=4.5.0
+
+# Concurrent processing
+numpy>=1.19.0
+
+# For poppler-utils (required by pdf2image)
+# On Windows: pip install pdf2image
+# On macOS: brew install poppler
+# On Ubuntu/Debian: sudo apt-get install poppler-utils
+
+# Cross-platform GUI support
+# tkinter comes with Python, no need to install separately

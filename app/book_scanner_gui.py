@@ -1,0 +1,242 @@
+import tkinter as tk
+from tkinter import messagebox
+import threading
+import pyautogui
+import os
+import sys
+
+# Add current directory to Python path to find our modules
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
+# Import our modular components
+from gui_components import GUIComponents
+from selection_handlers import SelectionHandlers
+from capture_processor import CaptureProcessor
+from settings_manager import SettingsManager
+
+class BookScannerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Book Scanner - Cross Platform")
+        self.root.geometry("800x600")
+        
+        # Variables for screen coordinates
+        self.top_left = None
+        self.bottom_right = None
+        self.next_button_pos = None
+        self.total_pages = 0
+        self.capture_area = None
+        self.selecting_area = False
+        self.selecting_button = False
+        
+        # Control variables
+        self.capture_thread = None
+        self.stop_capture_flag = False
+        
+        # Initialize modular components
+        self.gui_components = GUIComponents(self)
+        self.selection_handlers = SelectionHandlers(self)
+        self.capture_processor = CaptureProcessor(self)
+        self.settings_manager = SettingsManager(self)
+        
+        # Create the GUI
+        self.gui_components.create_widgets()
+        
+        # Load previous settings after GUI is created
+        self.settings_manager.load_settings()
+        
+        # Welcome message
+        self.log_message("=== Book Scanner Started ===")
+        self.log_message("Previous area and button selections are automatically restored if available.")
+        self.log_message("Your selections will be automatically saved for next time.")
+        self.log_message("Use the Settings section to manage saved preferences.")
+        self.log_message("")
+        
+        # Disable failsafe to prevent interruption during automation
+        pyautogui.FAILSAFE = False
+        
+    def log_message(self, message):
+        """Add message to output text widget"""
+        # Check if output_text widget exists (GUI has been created)
+        if hasattr(self, 'output_text') and self.output_text:
+            self.output_text.insert(tk.END, f"{message}\n")
+            self.output_text.see(tk.END)
+            self.root.update_idletasks()
+        else:
+            # If GUI not ready, just print to console
+            print(f"[Book Scanner] {message}")
+        
+    # Delegate methods to modular components
+    def select_capture_area(self):
+        """Delegate to selection handlers - overlay method"""
+        self.selection_handlers.select_capture_area()
+        
+    def select_next_button(self):
+        """Delegate to selection handlers"""
+        self.selection_handlers.select_next_button()
+        
+    def start_capture_process(self):
+        """Delegate to capture processor"""
+        self.capture_processor.start_capture_process()
+        
+    def stop_capture(self):
+        """Delegate to capture processor"""
+        self.capture_processor.stop_capture()
+        
+    def test_capture_area(self):
+        """Test capture with selected area to verify coordinates"""
+        if not self.top_left or not self.bottom_right:
+            self.log_message("Please select capture area first!")
+            return
+            
+        try:
+            # Calculate region - with direct approach
+            x1, y1 = self.top_left
+            x2, y2 = self.bottom_right
+            width = x2 - x1
+            height = y2 - y1
+            
+            # Create region tuple in pyautogui format (left, top, width, height)
+            region = (x1, y1, width, height)
+            
+            self.log_message(f"=== Test Capture Debug Info ===")
+            self.log_message(f"Stored coordinates - Top-left: {self.top_left}, Bottom-right: {self.bottom_right}")
+            self.log_message(f"Calculated region for pyautogui: {region}")
+            self.log_message(f"Size: {width}x{height}")
+            
+            # Add platform info
+            import platform
+            self.log_message(f"Platform: {platform.system()}")
+            
+            # Hide window for test
+            self.root.withdraw()
+            import time
+            time.sleep(1)
+            
+            # Take test screenshot
+            screenshot = pyautogui.screenshot(region=region)
+            
+            # Save to desktop for inspection
+            import os
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+            test_file = os.path.join(desktop_path, "test_capture.png")
+            screenshot.save(test_file)
+            
+            # Show the captured image in a new window
+            self.show_test_capture(screenshot)
+            
+            # Show window again
+            self.root.deiconify()
+            
+            # Let the user know where the file was saved
+            self.log_message(f"✅ Test capture saved to Desktop as 'test_capture.png'")
+            messagebox.showinfo("Test Capture Complete", f"Test screenshot saved to your Desktop as 'test_capture.png'.\nCheck if the capture area looks correct.")
+            
+            self.log_message(f"Test capture saved to: {test_file}")
+            self.log_message(f"Captured image size: {screenshot.size}")
+            self.log_message("Check the test capture image to verify if coordinates are correct")
+            self.log_message("=== End Debug Info ===")
+            
+        except Exception as e:
+            self.root.deiconify()
+            self.log_message(f"Test capture failed: {e}")
+            
+    def show_settings_status(self):
+        """Show current settings status"""
+        self.log_message("=== Current Settings Status ===")
+        if self.top_left and self.bottom_right:
+            self.log_message(f"✓ Capture area: {self.top_left} to {self.bottom_right}")
+        else:
+            self.log_message("✗ No capture area selected")
+            
+        if self.next_button_pos:
+            self.log_message(f"✓ Next button position: {self.next_button_pos}")
+        else:
+            self.log_message("✗ No next button position selected")
+            
+        self.log_message(f"📄 Page count: {self.pages_var.get()}")
+        
+        # Check if settings file exists
+        import os
+        settings_file = os.path.join(os.path.dirname(__file__), 'book_scanner_settings.json')
+        if os.path.exists(settings_file):
+            self.log_message("💾 Settings file exists and will be loaded on startup")
+        else:
+            self.log_message("💾 No saved settings file found")
+        self.log_message("===============================")
+        
+    def show_test_capture(self, screenshot):
+        """Display the test capture in a new window"""
+        from PIL import ImageTk
+        
+        # Create a new window
+        capture_window = tk.Toplevel(self.root)
+        capture_window.title("Test Capture Result")
+        
+        # Get image dimensions
+        img_width, img_height = screenshot.size
+        
+        # Set window size with some padding
+        window_width = min(img_width + 40, 1200)
+        window_height = min(img_height + 100, 800)
+        capture_window.geometry(f"{window_width}x{window_height}")
+        
+        # Create a header
+        header_frame = tk.Frame(capture_window, bg='#e0e0e0')
+        header_frame.pack(fill=tk.X, pady=10)
+        
+        header_label = tk.Label(header_frame, 
+                              text="TEST CAPTURE RESULT", 
+                              font=('Arial', 14, 'bold'),
+                              bg='#e0e0e0')
+        header_label.pack(pady=5)
+        
+        # Create scrollable frame for image
+        main_frame = tk.Frame(capture_window)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Add scrollbars if needed
+        h_scrollbar = tk.Scrollbar(main_frame, orient=tk.HORIZONTAL)
+        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        v_scrollbar = tk.Scrollbar(main_frame)
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Create canvas for the image with scrollbars
+        canvas = tk.Canvas(main_frame, 
+                         width=min(img_width, window_width-40),
+                         height=min(img_height, window_height-140),
+                         xscrollcommand=h_scrollbar.set, 
+                         yscrollcommand=v_scrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Configure scrollbars
+        h_scrollbar.config(command=canvas.xview)
+        v_scrollbar.config(command=canvas.yview)
+        
+        # Convert PIL image to Tkinter PhotoImage
+        photo = ImageTk.PhotoImage(screenshot)
+        
+        # Add image to canvas
+        canvas.create_image(0, 0, anchor=tk.NW, image=photo)
+        canvas.config(scrollregion=(0, 0, img_width, img_height))
+        
+        # Create button to close window
+        close_btn = tk.Button(capture_window, text="Close", 
+                            command=capture_window.destroy,
+                            font=('Arial', 12),
+                            padx=20, pady=5)
+        close_btn.pack(pady=10)
+        
+        # Keep a reference to the image to prevent garbage collection
+        canvas.image = photo
+
+def main():
+    root = tk.Tk()
+    app = BookScannerApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
