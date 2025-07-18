@@ -250,16 +250,29 @@ class BookScannerApp:
         self.log_message("Using Async Document Detection (default method)")
         
         # Determine output folder and filename
+        base_location = self.base_location_var.get().strip() if hasattr(self, 'base_location_var') and self.base_location_var else ""
         base_filename = self.base_filename_var.get().strip() if hasattr(self, 'base_filename_var') and self.base_filename_var else ""
         
-        if base_filename:
-            # User specified custom base filename - use its directory for output
-            output_folder = os.path.dirname(base_filename) if os.path.dirname(base_filename) else os.path.dirname(pdf_file)
-            output_base = base_filename
+        # Determine output folder
+        if base_location:
+            # User specified custom save location
+            output_folder = base_location
         else:
-            # Use same folder as PDF for output with PDF's base name
-            output_folder = os.path.dirname(pdf_file)
-            output_base = os.path.join(output_folder, os.path.splitext(os.path.basename(pdf_file))[0])
+            # Use default location or same folder as PDF
+            default_location = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
+            output_folder = default_location
+            
+        # Ensure output folder exists
+        os.makedirs(output_folder, exist_ok=True)
+        
+        # Determine output base filename
+        if base_filename:
+            # User specified custom base filename
+            output_base = os.path.join(output_folder, base_filename)
+        else:
+            # Use PDF's base name
+            pdf_basename = os.path.splitext(os.path.basename(pdf_file))[0]
+            output_base = os.path.join(output_folder, pdf_basename)
             
         self.log_message(f"Output folder: {output_folder}")
         self.log_message(f"Output base filename: {output_base}")
