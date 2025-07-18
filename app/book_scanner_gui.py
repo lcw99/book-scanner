@@ -37,6 +37,10 @@ class BookScannerApp:
         self.capture_thread = None
         self.stop_capture_flag = False
         
+        # Output filename and location variables (will be initialized by GUI components)
+        self.base_location_var = None
+        self.base_filename_var = None
+        
         # Initialize modular components
         self.gui_components = GUIComponents(self)
         self.selection_handlers = SelectionHandlers(self)
@@ -163,6 +167,37 @@ class BookScannerApp:
             
         self.log_message(f"📄 Page count: {self.pages_var.get()}")
         
+        # Show base location and filename settings
+        base_location = ""
+        base_filename = ""
+        
+        if hasattr(self, 'base_location_var') and self.base_location_var:
+            base_location = self.base_location_var.get().strip()
+            
+        if hasattr(self, 'base_filename_var') and self.base_filename_var:
+            base_filename = self.base_filename_var.get().strip()
+            
+        if base_location or base_filename:
+            if base_location:
+                self.log_message(f"📁 Save location: {base_location}")
+            else:
+                self.log_message("📁 Save location: ~/Documents/book-scanner/ (default)")
+                
+            if base_filename:
+                self.log_message(f"📝 Base filename: {base_filename}")
+                # Construct full path for display
+                if base_location:
+                    full_path = os.path.join(base_location, base_filename)
+                else:
+                    default_location = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
+                    full_path = os.path.join(default_location, base_filename)
+                self.log_message(f"   → PDF will be saved as: {full_path}.pdf")
+                self.log_message(f"   → Text will be saved as: {full_path}.txt")
+            else:
+                self.log_message("� Using auto-generated filename")
+        else:
+            self.log_message("📁 Using default location and auto-generated filename")
+        
         # Check if settings file exists
         import os
         settings_file = os.path.join(os.path.dirname(__file__), 'book_scanner_settings.json')
@@ -199,19 +234,8 @@ class BookScannerApp:
                 "or edit src/google_vision_ocr.py to add the credentials path directly.")
             return
         
-        # Ask user to choose OCR method
-        choice = messagebox.askyesnocancel(
-            "Choose OCR Method",
-            "Choose OCR processing method:\n\n"
-            "• YES: Async Document Detection (Faster, requires Google Cloud Storage)\n"
-            "• NO: Traditional Method (Slower, no cloud storage needed)\n"
-            "• CANCEL: Cancel operation"
-        )
-        
-        if choice is None:  # User cancelled
-            return
-        
-        use_async = choice  # True for async, False for traditional
+        # Default to async OCR method (faster, requires Google Cloud Storage)
+        use_async = True
         
         # Open file dialog to select PDF
         pdf_file = filedialog.askopenfilename(
@@ -223,19 +247,22 @@ class BookScannerApp:
             return  # User cancelled
         
         self.log_message(f"Selected PDF: {os.path.basename(pdf_file)}")
-        self.log_message(f"Using {'Async Document Detection' if use_async else 'Traditional'} method")
+        self.log_message("Using Async Document Detection (default method)")
         
-        # Choose output folder
-        output_folder = filedialog.askdirectory(
-            title="Select output folder for text file",
-            initialdir=os.path.dirname(pdf_file)
-        )
+        # Determine output folder and filename
+        base_filename = self.base_filename_var.get().strip() if hasattr(self, 'base_filename_var') and self.base_filename_var else ""
         
-        if not output_folder:
-            # Use same folder as PDF if user cancels
+        if base_filename:
+            # User specified custom base filename - use its directory for output
+            output_folder = os.path.dirname(base_filename) if os.path.dirname(base_filename) else os.path.dirname(pdf_file)
+            output_base = base_filename
+        else:
+            # Use same folder as PDF for output with PDF's base name
             output_folder = os.path.dirname(pdf_file)
-        
+            output_base = os.path.join(output_folder, os.path.splitext(os.path.basename(pdf_file))[0])
+            
         self.log_message(f"Output folder: {output_folder}")
+        self.log_message(f"Output base filename: {output_base}")
         
         # Start OCR processing in a separate thread
         def run_pdf_ocr():
@@ -251,8 +278,8 @@ class BookScannerApp:
                     # Process with async method
                     extracted_text = upload_to_gcs_and_process(pdf_file, bucket_name, output_folder=output_folder)
                     
-                    # Save the result
-                    output_file = os.path.join(output_folder, f"{os.path.basename(pdf_file)}_async.txt")
+                    # Save the result with custom filename
+                    output_file = output_base + "_async.txt"
                     with open(output_file, 'w', encoding='utf-8') as f:
                         f.write(extracted_text)
                     
@@ -269,19 +296,18 @@ class BookScannerApp:
                     # Process the PDF with traditional method
                     process_pdf(pdf_file, output_folder)
                     
-                    # Create output file path for display
-                    output_file = os.path.join(output_folder, f"{os.path.basename(pdf_file)}.txt")
+                    # Create output file path for display - use custom base filename if available
+                    output_file = output_base + ".txt"
                     
                     self.status_label.config(text="Traditional OCR processing completed!")
                     self.log_message("✅ Traditional OCR processing completed!")
                     self.log_message(f"Text extracted to: {output_file}")
                 
-                # Show completion message
+                # Log completion message without showing dialog
                 method_name = "Async Document Detection" if use_async else "Traditional"
-                messagebox.showinfo("OCR Complete", 
-                    f"{method_name} OCR processing completed!\n\n"
-                    f"Text file saved as:\n{os.path.basename(output_file)}\n\n"
-                    f"Location: {output_folder}")
+                self.log_message(f"✅ {method_name} OCR processing completed!")
+                self.log_message(f"Text file saved as: {os.path.basename(output_file)}")
+                self.log_message(f"Location: {output_folder}")
                 
             except Exception as e:
                 error_msg = f"❌ {('Async' if use_async else 'Traditional')} OCR Error: {str(e)}"

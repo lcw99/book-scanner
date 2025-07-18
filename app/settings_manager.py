@@ -21,6 +21,8 @@ class SettingsManager:
             'bottom_right': self.app.bottom_right,
             'next_button_pos': self.app.next_button_pos,
             'total_pages': self.app.pages_var.get() if hasattr(self.app, 'pages_var') else "10",
+            'base_location': self.app.base_location_var.get() if hasattr(self.app, 'base_location_var') and self.app.base_location_var else "",
+            'base_filename': self.app.base_filename_var.get() if hasattr(self.app, 'base_filename_var') and self.app.base_filename_var else "",
             'version': '1.0'
         }
         
@@ -64,6 +66,29 @@ class SettingsManager:
             # Restore page count
             if settings.get('total_pages'):
                 self.app.pages_var.set(settings['total_pages'])
+                
+            # Restore base location
+            if settings.get('base_location') and hasattr(self.app, 'base_location_var') and self.app.base_location_var:
+                self.app.base_location_var.set(settings['base_location'])
+                self.app.log_message(f"Restored base location: {settings['base_location']}")
+                
+            # Restore base filename  
+            if settings.get('base_filename') and hasattr(self.app, 'base_filename_var') and self.app.base_filename_var:
+                self.app.base_filename_var.set(settings['base_filename'])
+                self.app.log_message(f"Restored base filename: {settings['base_filename']}")
+            
+            # For backward compatibility with old settings files
+            elif settings.get('base_filename') and hasattr(self.app, 'base_filename_var') and self.app.base_filename_var:
+                # Try to split old combined path into location and filename
+                old_path = settings['base_filename']
+                if os.path.dirname(old_path) and os.path.basename(old_path):
+                    if hasattr(self.app, 'base_location_var') and self.app.base_location_var:
+                        self.app.base_location_var.set(os.path.dirname(old_path))
+                    self.app.base_filename_var.set(os.path.basename(old_path))
+                    self.app.log_message(f"Migrated old settings - Location: {os.path.dirname(old_path)}, Filename: {os.path.basename(old_path)}")
+                else:
+                    self.app.base_filename_var.set(old_path)
+                    self.app.log_message(f"Restored legacy filename: {old_path}")
                 
             self.app.log_message("Previous settings restored successfully!")
             return True

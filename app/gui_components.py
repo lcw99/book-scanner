@@ -97,15 +97,43 @@ class GUIComponents:
         self.app.button_status_label.grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
         
     def _create_step3_frame(self, parent):
-        """Create Step 3 frame for page count"""
-        step3_frame = ttk.LabelFrame(parent, text="Step 3: Set Total Pages", padding="10")
+        """Create Step 3 frame for page count and output settings"""
+        step3_frame = ttk.LabelFrame(parent, text="Step 3: Set Output Options", padding="10")
         step3_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
-        ttk.Label(step3_frame, text="Enter the total number of pages to capture:").grid(row=0, column=0, sticky=tk.W)
+        # Pages input
+        ttk.Label(step3_frame, text="Total pages to capture:").grid(row=0, column=0, sticky=tk.W)
         
         self.app.pages_var = tk.StringVar(value="10")
         self.app.pages_entry = ttk.Entry(step3_frame, textvariable=self.app.pages_var, width=10)
         self.app.pages_entry.grid(row=0, column=1, sticky=tk.W, padx=(10, 0))
+        
+        # Base location input
+        ttk.Label(step3_frame, text="Save location:").grid(row=1, column=0, sticky=tk.W, pady=(10, 0))
+        
+        self.app.base_location_var = tk.StringVar()
+        base_location_frame = ttk.Frame(step3_frame)
+        base_location_frame.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=(10, 0), pady=(10, 0))
+        
+        self.app.base_location_entry = ttk.Entry(base_location_frame, textvariable=self.app.base_location_var, width=25)
+        self.app.base_location_entry.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        self.app.browse_location_btn = ttk.Button(base_location_frame, text="Browse...", command=self.browse_save_location)
+        self.app.browse_location_btn.grid(row=0, column=1, sticky=tk.W, padx=(5, 0))
+        
+        # Configure the frame to expand
+        base_location_frame.columnconfigure(0, weight=1)
+        
+        # Base filename input
+        ttk.Label(step3_frame, text="Base filename:").grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
+        
+        self.app.base_filename_var = tk.StringVar()
+        self.app.base_filename_entry = ttk.Entry(step3_frame, textvariable=self.app.base_filename_var, width=25)
+        self.app.base_filename_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=(10, 0), pady=(10, 0))
+        
+        # Help text
+        help_text = "Leave location empty for ~/Documents/book-scanner/ and filename empty for auto-generated"
+        ttk.Label(step3_frame, text=help_text, font=("TkDefaultFont", 8), foreground="gray").grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
         
     def _create_step4_frame(self, parent):
         """Create Step 4 frame for capture and process"""
@@ -264,4 +292,43 @@ class GUIComponents:
         # Reset page count to default
         self.app.pages_var.set("10")
         
+        # Reset base location and filename
+        if hasattr(self.app, 'base_location_var') and self.app.base_location_var:
+            self.app.base_location_var.set("")
+        if hasattr(self.app, 'base_filename_var') and self.app.base_filename_var:
+            self.app.base_filename_var.set("")
+        
         self.app.log_message("Selections reset - you can now select new area and button positions")
+        
+    def browse_save_location(self):
+        """Browse for save location directory"""
+        from tkinter import filedialog
+        import os
+        
+        # Default to Documents/book-scanner if it exists, otherwise user's home
+        default_dir = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
+        if not os.path.exists(default_dir):
+            default_dir = os.path.expanduser("~")
+            
+        # Get current location if any
+        current_location = self.app.base_location_var.get()
+        if current_location and os.path.exists(current_location):
+            default_dir = current_location
+        
+        # Show directory selection dialog
+        selected_dir = filedialog.askdirectory(
+            title="Choose save location",
+            initialdir=default_dir
+        )
+        
+        if selected_dir:
+            self.app.base_location_var.set(selected_dir)
+            self.app.log_message(f"Save location set to: {selected_dir}")
+            
+            # If filename is empty, suggest a default
+            if not self.app.base_filename_var.get():
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                suggested_filename = f"captured_book_{timestamp}"
+                self.app.base_filename_var.set(suggested_filename)
+                self.app.log_message(f"Suggested filename: {suggested_filename}")

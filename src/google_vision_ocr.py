@@ -135,7 +135,7 @@ def async_detect_document(gcs_source_uri, gcs_destination_uri, debug_annotations
         return full_text, annotations_data
     return full_text
 
-def upload_to_gcs_and_process(local_pdf_path, bucket_name, source_blob_name=None, destination_prefix=None, debug_annotations=True, output_folder=None):
+def upload_to_gcs_and_process(local_pdf_path, bucket_name, source_blob_name=None, destination_prefix=None, output_folder=None):
     """
     Uploads a local PDF to GCS and processes it using async document text detection.
     
@@ -146,7 +146,6 @@ def upload_to_gcs_and_process(local_pdf_path, bucket_name, source_blob_name=None
                                          If None, uses the original filename.
         destination_prefix (str, optional): Prefix for output files in GCS.
                                            If None, uses 'ocr_output/'.
-        debug_annotations (bool): If True, saves annotation data to debug files
         output_folder (str, optional): Folder to save debug files. If None, uses directory of PDF file.
     
     Returns:
@@ -171,23 +170,7 @@ def upload_to_gcs_and_process(local_pdf_path, bucket_name, source_blob_name=None
     gcs_destination_uri = f"gs://{bucket_name}/{destination_prefix}"
     
     # Process with async document detection
-    if debug_annotations:
-        # Use the output folder for debug files, or PDF's directory as fallback
-        debug_dir = output_folder if output_folder else os.path.dirname(local_pdf_path)
-        extracted_text, annotations = async_detect_document(gcs_source_uri, gcs_destination_uri, debug_annotations=True, debug_output_dir=debug_dir)
-        
-        # Save annotations to a debug file
-        import datetime
-        debug_file = os.path.join(debug_dir, f"gui_annotations_debug_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-        with open(debug_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                "source_file": local_pdf_path,
-                "total_pages": len(annotations),
-                "annotations": annotations
-            }, f, indent=2, ensure_ascii=False)
-        print(f"GUI Debug: Annotation data saved to {debug_file}")
-    else:
-        extracted_text = async_detect_document(gcs_source_uri, gcs_destination_uri)
+    extracted_text = async_detect_document(gcs_source_uri, gcs_destination_uri)
     
     # Clean up: delete the uploaded source file (optional)
     print(f"Cleaning up: deleting gs://{bucket_name}/{source_blob_name}")

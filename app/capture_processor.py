@@ -158,9 +158,10 @@ class CaptureProcessor:
             if self.app.total_pages <= 0:
                 raise ValueError()
                 
-            # Auto-save settings with updated page count
+            # Auto-save all settings before starting capture
             if hasattr(self.app, 'settings_manager'):
                 self.app.settings_manager.save_settings()
+                self.app.log_message("💾 Settings saved before starting capture")
                 
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid number of pages!")
@@ -263,7 +264,7 @@ class CaptureProcessor:
                                 pyautogui.click(self.app.next_button_pos)
                                 
                                 # Increased wait time for page to load and become ready
-                                time.sleep(2.5)
+                                time.sleep(1.0)
                             continue
                     else:
                         # Reset duplicate count if images are different
@@ -294,7 +295,7 @@ class CaptureProcessor:
                     
                     # Increased wait time for page to load and become ready
                     # This helps prevent the "first click doesn't work" issue
-                    time.sleep(2.5)  # Wait for page to load and stabilize
+                    time.sleep(1.0)  # Wait for page to load and stabilize
                     
             # Show GUI window again
             self.app.root.deiconify()
@@ -313,24 +314,18 @@ class CaptureProcessor:
                 return
                 
             # Step 2: Convert to PDF
-            pdf_path = self._convert_to_pdf(images)
+            pdf_path = self._save_pdf(images)
             
-            # Step 3: Ask user if they want to proceed with OCR
-            proceed_with_ocr = messagebox.askyesno(
-                "OCR Processing", 
-                f"PDF created successfully with {actual_pages_captured} pages!\n\n"
-                f"Location: {pdf_path}\n\n"
-                f"Would you like to proceed with OCR text extraction?\n"
-                f"(This may take several minutes depending on the number of pages)"
-            )
+            # Step 3: Automatically proceed with OCR (no dialog)
+            self.app.log_message(f"PDF created successfully with {actual_pages_captured} pages!")
+            self.app.log_message(f"Location: {pdf_path}")
+            self.app.log_message("Automatically proceeding with OCR text extraction...")
             
-            if proceed_with_ocr:
-                self._perform_ocr(pdf_path)
-            else:
-                self.app.log_message("OCR processing skipped by user.")
+            # Perform OCR automatically
+            ocr_output_folder = self._perform_ocr(pdf_path)
             
-            # Final completion message
-            self._show_completion_message(pdf_path, actual_pages_captured, ocr_performed=proceed_with_ocr)
+            # Step 4: Show completion message
+            self._show_completion_message(pdf_path, actual_pages_captured, ocr_performed=(ocr_output_folder is not None))
             
         except Exception as e:
             self.app.log_message(f"Error: {str(e)}")
@@ -341,23 +336,40 @@ class CaptureProcessor:
             self.app.capture_btn.config(state="normal")
             self.app.stop_btn.config(state="disabled")
             self.app.root.deiconify()  # Make sure window is visible
+            self.app.root.lift()  # Bring window to front
+            self.app.root.focus_force()  # Give window focus
             
-    def _convert_to_pdf(self, images):
-        """Convert captured images to PDF"""
+    def _save_pdf(self, images):
+        """Save captured images as PDF"""
         self.app.status_label.config(text="Converting to PDF...")
         self.app.log_message(f"Converting {len(images)} images to PDF...")
         
-        # Save PDF to Documents/book-scanner folder
-        output_folder = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
+        # Get base location and filename from user input or use defaults
+        base_location = self.app.base_location_var.get().strip() if hasattr(self.app, 'base_location_var') and self.app.base_location_var else ""
+        base_filename = self.app.base_filename_var.get().strip() if hasattr(self.app, 'base_filename_var') and self.app.base_filename_var else ""
+        
+        # Determine output location
+        if base_location:
+            output_folder = base_location
+        else:
+            # Use default location: Documents/book-scanner folder
+            output_folder = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
         
         # Create the folder if it doesn't exist
         os.makedirs(output_folder, exist_ok=True)
         
-        # Generate unique filename with timestamp
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        pdf_filename = f"captured_book_{timestamp}.pdf"
-        pdf_path = os.path.join(output_folder, pdf_filename)
+        # Determine filename
+        if base_filename:
+            # User specified a custom filename
+            filename_base = base_filename
+        else:
+            # Generate unique filename with timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename_base = f"captured_book_{timestamp}"
         
+        # Construct full PDF path
+        pdf_path = os.path.join(output_folder, filename_base + ".pdf")
+
         with open(pdf_path, "wb") as f:
             f.write(img2pdf.convert(images))
             
@@ -402,8 +414,26 @@ class CaptureProcessor:
         
         # Check if text file was created (only if OCR was performed)
         if ocr_performed:
-            output_folder = os.path.dirname(pdf_path)
-            text_file_path = os.path.join(output_folder, os.path.basename(pdf_path) + ".txt")
+            # Use the same location and filename logic as PDF generation
+            base_location = self.app.base_location_var.get().strip() if hasattr(self.app, 'base_location_var') and self.app.base_location_var else ""
+            base_filename = self.app.base_filename_var.get().strip() if hasattr(self.app, 'base_filename_var') and self.app.base_filename_var else ""
+            
+            # Determine output location (same as PDF)
+            if base_location:
+                output_folder = base_location
+            else:
+                output_folder = os.path.join(os.path.expanduser("~"), "Documents", "book-scanner")
+            
+            # Determine filename (same as PDF but with .txt extension)
+            if base_filename:
+                text_filename = base_filename + ".txt"
+            else:
+                # Extract filename from PDF path and change extension
+                pdf_basename = os.path.splitext(os.path.basename(pdf_path))[0]
+                text_filename = pdf_basename + ".txt"
+            
+            text_file_path = os.path.join(output_folder, text_filename)
+                
             if os.path.exists(text_file_path):
                 self.app.log_message(f"📄 Text file saved to: {text_file_path}")
         else:
